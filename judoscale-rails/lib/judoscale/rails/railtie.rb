@@ -14,7 +14,7 @@ module Judoscale
 
       def in_rails_console_or_runner?
         # This is gross, but we can't find a more reliable way to detect if we're in a Rails console/runner.
-        caller.any? { |call| call.include?("console_command.rb") || call.include?("runner_command.rb") }
+        caller.any? { |call| call.include?("console_command.rb") || call.include?("console.rb") || call.include?("runner_command.rb") }
       end
 
       def in_rake_task?(task_regex)
