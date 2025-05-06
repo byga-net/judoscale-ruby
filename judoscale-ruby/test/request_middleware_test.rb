@@ -9,7 +9,7 @@ module Judoscale
 
     def call(env)
       @env = env
-      nil
+      self
     end
   end
 
@@ -35,9 +35,11 @@ module Judoscale
           Judoscale.configure { |config| config.api_base_url = "http://example.com" }
         }
 
-        it "passes the request up the middleware stack" do
-          middleware.call(env)
-          _(app.env).must_equal(env)
+        it "passes the request env up the middleware stack, returning the app's response" do
+          response = middleware.call(env)
+
+          _(response).must_equal app
+          _(app.env).must_equal env
         end
 
         it "starts the reporter" do
@@ -52,16 +54,19 @@ module Judoscale
           before { env["HTTP_X_REQUEST_START"] = five_seconds_ago_in_unix_millis.to_i.to_s }
           after { MetricsStore.instance.clear }
 
-          it "collects the request queue time" do
+          it "collects the request queue time and application time" do
             freeze_time now do
               middleware.call(env)
             end
 
             metrics = MetricsStore.instance.flush
-            _(metrics.length).must_equal 1
-            _(metrics.first).must_be_instance_of Metric
-            _(metrics.first.value).must_be_within_delta 5000, 1
-            _(metrics.first.identifier).must_equal :qt
+            _(metrics.length).must_equal 2
+            _(metrics[0]).must_be_instance_of Metric
+            _(metrics[0].value).must_be_within_delta 5000, 1
+            _(metrics[0].identifier).must_equal :qt
+            _(metrics[1]).must_be_instance_of Metric
+            _(metrics[1].value).must_be_within_delta 0, 0.1
+            _(metrics[1].identifier).must_equal :at
           end
 
           it "records the queue time in the environment passed on" do
@@ -90,7 +95,8 @@ module Judoscale
               middleware.call(env)
 
               metrics = MetricsStore.instance.flush
-              _(metrics.length).must_equal 0
+              _(metrics.length).must_equal 1
+              _(metrics[0].identifier).must_equal :at
             end
           end
 
@@ -101,10 +107,10 @@ module Judoscale
               middleware.call(env)
 
               metrics = MetricsStore.instance.flush
-              _(metrics.length).must_equal 2
-              _(metrics.last).must_be_instance_of Metric
-              _(metrics.last.value).must_equal 50
-              _(metrics.last.identifier).must_equal :nt
+              _(metrics.length).must_equal 3
+              _(metrics[1]).must_be_instance_of Metric
+              _(metrics[1].value).must_equal 50
+              _(metrics[1].identifier).must_equal :nt
             end
 
             it "records the network time in the environment passed on" do
