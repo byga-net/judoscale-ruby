@@ -21,6 +21,28 @@ jobs:
           bump-minor-pre-major: true
           version-file: "judoscale-ruby/lib/judoscale/version.rb"
 
+      - name: Checkout code
+        if: ${{ !!steps.release.outputs.pr }}
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.release.outputs.pr.headBranchName }}
+
+      - name: Setup Ruby
+        if: ${{ !!steps.release.outputs.pr }}
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.4"
+
+      - name: Update versions
+        if: ${{ !!steps.release.outputs.pr }}
+        run: |
+          bin/foreach bundle install
+          # https://github.com/actions/checkout?tab=readme-ov-file#push-a-commit-using-the-built-in-token
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -a -m "Update Gemfile.lock versions"
+          git push
+
   publish:
     name: Publish to Rubygems
     needs: release-please
@@ -34,7 +56,7 @@ jobs:
       - name: Setup Ruby
         uses: ruby/setup-ruby@v1
         with:
-          ruby-version: "3.3"
+          ruby-version: "3.4"
 
       - name: Publish gems
         env:
